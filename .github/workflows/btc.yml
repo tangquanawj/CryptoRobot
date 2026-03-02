@@ -2,7 +2,7 @@ name: Crypto Price Push
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 * * * *"   # 每小时执行一次
   workflow_dispatch:
 
 jobs:
@@ -27,9 +27,11 @@ jobs:
         run: |
           TIMESTAMP=$(date +%s)
 
-          STRING_TO_SIGN=$(echo -e "${TIMESTAMP}\n${FEISHU_SECRET}")
+          # 正确拼接：timestamp + 换行 + secret
+          STRING_TO_SIGN="${TIMESTAMP}\n${FEISHU_SECRET}"
 
-          SIGN=$(printf "%s" "$STRING_TO_SIGN" \
+          # 计算签名（关键：printf %b 解析换行）
+          SIGN=$(printf "%b" "$STRING_TO_SIGN" \
             | openssl dgst -sha256 -hmac "$FEISHU_SECRET" -binary \
             | base64 \
             | tr -d '\n')
