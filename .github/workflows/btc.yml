@@ -1,0 +1,37 @@
+name: Crypto Price Push
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # 每小时
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get Crypto Prices
+        id: prices
+        run: |
+          RESPONSE=$(curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd")
+
+          BTC=$(echo $RESPONSE | jq .bitcoin.usd)
+          ETH=$(echo $RESPONSE | jq .ethereum.usd)
+          SOL=$(echo $RESPONSE | jq .solana.usd)
+
+          echo "btc=$BTC" >> $GITHUB_OUTPUT
+          echo "eth=$ETH" >> $GITHUB_OUTPUT
+          echo "sol=$SOL" >> $GITHUB_OUTPUT
+
+      - name: Send to Feishu
+        run: |
+          curl -X POST $FEISHU_WEBHOOK \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"msg_type\":\"text\",
+            \"content\":{
+              \"text\":\"📊 实时币价\nBTC: \$${{ steps.prices.outputs.btc }}\nETH: \$${{ steps.prices.outputs.eth }}\nSOL: \$${{ steps.prices.outputs.sol }}\"
+            }
+          }"
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
