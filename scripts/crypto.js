@@ -6,15 +6,18 @@ const webhook = process.env.FEISHU_WEBHOOK;
 const secret = process.env.FEISHU_SECRET;
 
 // 核心币池和轮动币池
-const coreCoins = ["bitcoin", "ethereum", "solana"];
-const rotationCoins = ["near", "arbitrum", "aptos", "sui", "render-token"];
+const coreCoins = ["bitcoin", "ethereum", "solana", "binancecoin", "ripple", "cardano"];
+const rotationCoins = ["near", "arbitrum", "aptos", "sui", "render-token", "polkadot", "chainlink", "avalanche", "polygon", "cosmos"];
 const allCoins = [...coreCoins, ...rotationCoins];
 
 // 持仓示例
 const holdings = {
   "bitcoin": 0.5,
   "ethereum": 2,
-  "solana": 10
+  "solana": 10,
+  "binancecoin": 5,
+  "ripple": 100,
+  "cardano": 50
 };
 
 // 飞书签名函数
