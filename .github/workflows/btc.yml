@@ -2,7 +2,7 @@ name: Crypto Price Push
 
 on:
   schedule:
-    - cron: "0 * * * *"   # 每小时
+    - cron: "0 * * * *"   # 每小时执行一次
   workflow_dispatch:
 
 jobs:
@@ -23,11 +23,17 @@ jobs:
           echo "eth=$ETH" >> $GITHUB_OUTPUT
           echo "sol=$SOL" >> $GITHUB_OUTPUT
 
-      - name: Send to Feishu
+      - name: Send to Feishu (With Sign)
         run: |
+          TIMESTAMP=$(date +%s)
+          STRING_TO_SIGN="${TIMESTAMP}\n${FEISHU_SECRET}"
+          SIGN=$(echo -n "$STRING_TO_SIGN" | openssl dgst -sha256 -hmac "$FEISHU_SECRET" -binary | base64)
+
           curl -X POST $FEISHU_WEBHOOK \
           -H "Content-Type: application/json" \
           -d "{
+            \"timestamp\":\"$TIMESTAMP\",
+            \"sign\":\"$SIGN\",
             \"msg_type\":\"text\",
             \"content\":{
               \"text\":\"📊 实时币价\nBTC: \$${{ steps.prices.outputs.btc }}\nETH: \$${{ steps.prices.outputs.eth }}\nSOL: \$${{ steps.prices.outputs.sol }}\"
@@ -35,3 +41,4 @@ jobs:
           }"
         env:
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
