@@ -1,0 +1,8 @@
+{
+  "name": "crypto-monitor-pro",
+  "version": "2.0.0",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chartjs-node-canvas": "^4.1.7"
+  }
+}

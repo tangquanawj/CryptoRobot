@@ -1,4 +1,4 @@
-name: Crypto Ultimate
+name: Crypto Ultimate Pro
 
 on:
   schedule:
@@ -8,10 +8,14 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Script
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run script
         run: node scripts/crypto.js
         env:
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
