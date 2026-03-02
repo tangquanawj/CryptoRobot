@@ -1,0 +1,127 @@
+name: Crypto Pro Push
+
+on:
+  schedule:
+    - cron: "0 1,13 * * *"
+  workflow_dispatch:
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get Market Data
+        id: market
+        run: |
+          RESPONSE=$(curl -s "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana")
+
+          BTC_PRICE=$(echo "$RESPONSE" | jq -r '.[] | select(.id=="bitcoin") | .current_price')
+          BTC_CHANGE=$(echo "$RESPONSE" | jq -r '.[] | select(.id=="bitcoin") | .price_change_percentage_24h')
+
+          ETH_PRICE=$(echo "$RESPONSE" | jq -r '.[] | select(.id=="ethereum") | .current_price')
+          ETH_CHANGE=$(echo "$RESPONSE" | jq -r '.[] | select(.id=="ethereum") | .price_change_percentage_24h')
+
+          SOL_PRICE=$(echo "$RESPONSE" | jq -r '.[] | select(.id=="solana") | .current_price')
+          SOL_CHANGE=$(echo "$RESPONSE" | jq -r '.[] | select(.id=="solana") | .price_change_percentage_24h')
+
+          echo "btc_price=$BTC_PRICE" >> $GITHUB_OUTPUT
+          echo "btc_change=$BTC_CHANGE" >> $GITHUB_OUTPUT
+          echo "eth_price=$ETH_PRICE" >> $GITHUB_OUTPUT
+          echo "eth_change=$ETH_CHANGE" >> $GITHUB_OUTPUT
+          echo "sol_price=$SOL_PRICE" >> $GITHUB_OUTPUT
+          echo "sol_change=$SOL_CHANGE" >> $GITHUB_OUTPUT
+
+      - name: Send Card to Feishu
+        run: |
+          node <<'EOF'
+          const crypto = require('crypto');
+          const https = require('https');
+
+          const webhook = process.env.FEISHU_WEBHOOK;
+          const secret = process.env.FEISHU_SECRET;
+
+          const timestamp = Math.floor(Date.now() / 1000).toString();
+          const stringToSign = `${timestamp}\n${secret}`;
+
+          const sign = crypto
+            .createHmac('sha256', stringToSign)
+            .update('')
+            .digest('base64');
+
+          function formatLine(name, price, change) {
+            const arrow = change >= 0 ? "🔺" : "🔻";
+            const percent = Number(change).toFixed(2);
+            return `${name}  $${price}  ${arrow} ${percent}%`;
+          }
+
+          const btc = formatLine("BTC", process.env.BTC_PRICE, process.env.BTC_CHANGE);
+          const eth = formatLine("ETH", process.env.ETH_PRICE, process.env.ETH_CHANGE);
+          const sol = formatLine("SOL", process.env.SOL_PRICE, process.env.SOL_CHANGE);
+
+          let alertText = "";
+          if (Math.abs(process.env.BTC_CHANGE) >= 5) alertText += "⚠ BTC 波动超过 5%\n";
+          if (Math.abs(process.env.ETH_CHANGE) >= 5) alertText += "⚠ ETH 波动超过 5%\n";
+          if (Math.abs(process.env.SOL_CHANGE) >= 5) alertText += "⚠ SOL 波动超过 5%\n";
+
+          const body = JSON.stringify({
+            timestamp,
+            sign,
+            msg_type: "interactive",
+            card: {
+              header: {
+                title: {
+                  tag: "plain_text",
+                  content: "📊 加密市场行情"
+                }
+              },
+              elements: [
+                {
+                  tag: "div",
+                  text: {
+                    tag: "lark_md",
+                    content: `${btc}\n${eth}\n${sol}`
+                  }
+                },
+                {
+                  tag: "hr"
+                },
+                {
+                  tag: "div",
+                  text: {
+                    tag: "lark_md",
+                    content: alertText || "✅ 市场波动正常"
+                  }
+                }
+              ]
+            }
+          });
+
+          const url = new URL(webhook);
+
+          const options = {
+            hostname: url.hostname,
+            path: url.pathname + url.search,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(body)
+            }
+          };
+
+          const req = https.request(options, res => {
+            res.on('data', d => process.stdout.write(d));
+          });
+
+          req.on('error', error => console.error(error));
+          req.write(body);
+          req.end();
+          EOF
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          BTC_PRICE: ${{ steps.market.outputs.btc_price }}
+          BTC_CHANGE: ${{ steps.market.outputs.btc_change }}
+          ETH_PRICE: ${{ steps.market.outputs.eth_price }}
+          ETH_CHANGE: ${{ steps.market.outputs.eth_change }}
+          SOL_PRICE: ${{ steps.market.outputs.sol_price }}
+          SOL_CHANGE: ${{ steps.market.outputs.sol_change }}
