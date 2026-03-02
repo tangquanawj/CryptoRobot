@@ -5,6 +5,26 @@ const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
 const webhook = process.env.FEISHU_WEBHOOK;
 const secret = process.env.FEISHU_SECRET;
 
+// 币名称到代码的映射
+const coinSymbols = {
+  "bitcoin": "BTC",
+  "ethereum": "ETH",
+  "solana": "SOL",
+  "binancecoin": "BNB",
+  "ripple": "XRP",
+  "cardano": "ADA",
+  "near": "NEAR",
+  "arbitrum": "ARB",
+  "aptos": "APT",
+  "sui": "SUI",
+  "render-token": "RNDR",
+  "polkadot": "DOT",
+  "chainlink": "LINK",
+  "avalanche": "AVAX",
+  "polygon": "MATIC",
+  "cosmos": "ATOM"
+};
+
 // 核心币池和轮动币池
 const coreCoins = ["bitcoin", "ethereum", "solana", "binancecoin", "ripple", "cardano"];
 const rotationCoins = ["near", "arbitrum", "aptos", "sui", "render-token", "polkadot", "chainlink", "avalanche", "polygon", "cosmos"];
@@ -93,11 +113,12 @@ async function getChartBase64(coinId, days = 7) {
       const lastPrice = data.usd;
       const change = data.usd_24h_change;
       const arrow = change >= 0 ? "🔺" : "🔻";
-      const line = `${instId} $${lastPrice.toFixed(2)} ${arrow} ${change.toFixed(2)}%`;
+      const symbol = coinSymbols[instId] || instId;
+      const line = `${symbol} $${lastPrice.toFixed(2)} ${arrow} ${change.toFixed(2)}%`;
 
       if (coreCoins.includes(instId)) {
         coreLines.push(line);
-        if (Math.abs(change) >= 5) alert += `⚠ ${instId} 核心币波动超过5%\n`;
+        if (Math.abs(change) >= 5) alert += `⚠ ${symbol} 核心币波动超过5%\n`;
         if (holdings[instId]) totalValue += holdings[instId] * lastPrice;
       }
 
