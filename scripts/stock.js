@@ -73,20 +73,64 @@ function sign(timestamp) {
 }
 
 async function getStockData(symbols) {
+  const results = [];
+  const apiKey = process.env.TWELVE_DATA_API_KEY || "demo";
+  
   try {
-    console.log(`Fetching stock data for ${symbols.join(', ')}`);
-    const res = await axios.get("https://query1.finance.yahoo.com/v7/finance/quote", {
-      params: {
-        symbols: symbols.join(',')
-      },
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    const symbolMap = {};
+    const twelveSymbols = [];
+    
+    symbols.forEach(symbol => {
+      let tsSymbol = symbol;
+      if (symbol.endsWith('.HK')) {
+        tsSymbol = symbol.replace('.HK', '') + '.HKEX';
+      } else if (symbol.startsWith('^')) {
+        const indexMap = {
+          '^GSPC': 'SPX',
+          '^DJI': 'DJI',
+          '^IXIC': 'IXIC',
+          '^RUT': 'RUT',
+          '^HSI': 'HSI',
+          '^HSCE': 'HSCEI',
+          '^HSTECH': 'HSTECH'
+        };
+        tsSymbol = indexMap[symbol] || symbol.substring(1);
       }
+      symbolMap[tsSymbol] = symbol;
+      twelveSymbols.push(tsSymbol);
     });
-    console.log("Stock response received");
-    return res.data.quoteResponse.result || [];
+    
+    console.log(`Fetching stock data for ${twelveSymbols.join(', ')}`);
+    
+    const res = await axios.get("https://api.twelvedata.com/quote", {
+      params: {
+        symbol: twelveSymbols.join(','),
+        apikey: apiKey
+      },
+      timeout: 15000
+    });
+    
+    if (res.data) {
+      const quotes = Array.isArray(res.data) ? res.data : [res.data];
+      quotes.forEach(quote => {
+        if (quote.symbol && quote.close && quote.percent_change) {
+          const originalSymbol = symbolMap[quote.symbol] || quote.symbol;
+          results.push({
+            symbol: originalSymbol,
+            regularMarketPrice: parseFloat(quote.close),
+            regularMarketChangePercent: parseFloat(quote.percent_change) / 100
+          });
+        }
+      });
+    }
+    
+    console.log("Stock data fetch complete, got", results.length, "quotes");
+    return results;
   } catch (error) {
     console.error("Error fetching stock data:", error.message);
+    if (error.response) {
+      console.error("Response data:", error.response.data);
+    }
     return [];
   }
 }
