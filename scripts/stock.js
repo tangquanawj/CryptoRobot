@@ -74,61 +74,51 @@ function sign(timestamp) {
 
 async function getStockData(symbols) {
   const results = [];
-  const apiKey = process.env.TWELVE_DATA_API_KEY || "demo";
   
   try {
-    const symbolMap = {};
-    const twelveSymbols = [];
+    console.log(`Fetching stock data for ${symbols.join(', ')}`);
     
-    symbols.forEach(symbol => {
-      let tsSymbol = symbol;
-      if (symbol.endsWith('.HK')) {
-        tsSymbol = symbol.replace('.HK', '') + '.HKEX';
-      } else if (symbol.startsWith('^')) {
-        const indexMap = {
-          '^GSPC': 'SPX',
-          '^DJI': 'DJI',
-          '^IXIC': 'IXIC',
-          '^RUT': 'RUT',
-          '^HSI': 'HSI',
-          '^HSCE': 'HSCEI',
-          '^HSTECH': 'HSTECH'
-        };
-        tsSymbol = indexMap[symbol] || symbol.substring(1);
-      }
-      symbolMap[tsSymbol] = symbol;
-      twelveSymbols.push(tsSymbol);
-    });
-    
-    console.log(`Fetching stock data for ${twelveSymbols.join(', ')}`);
-    
-    const res = await axios.get("https://api.twelvedata.com/quote", {
+    const res = await axios.get("https://query1.finance.yahoo.com/v7/finance/quote", {
       params: {
-        symbol: twelveSymbols.join(','),
-        apikey: apiKey
+        symbols: symbols.join(','),
+        formatted: false
       },
-      timeout: 15000
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+      },
+      timeout: 30000
     });
     
-    if (res.data) {
-      const quotes = Array.isArray(res.data) ? res.data : [res.data];
-      quotes.forEach(quote => {
-        if (quote.symbol && quote.close && quote.percent_change) {
-          const originalSymbol = symbolMap[quote.symbol] || quote.symbol;
-          results.push({
-            symbol: originalSymbol,
-            regularMarketPrice: parseFloat(quote.close),
-            regularMarketChangePercent: parseFloat(quote.percent_change) / 100
-          });
+    if (res.data && res.data.quoteResponse && res.data.quoteResponse.result) {
+      const quotes = res.data.quoteResponse.result;
+      console.log("Received", quotes.length, "quotes from Yahoo Finance");
+      
+      quotes.forEach(q => {
+        if (q && q.symbol) {
+          const price = q.regularMarketPrice;
+          const change = q.regularMarketChangePercent;
+          
+          if (price != null && change != null) {
+            results.push({
+              symbol: q.symbol,
+              regularMarketPrice: price,
+              regularMarketChangePercent: change
+            });
+          }
         }
       });
     }
     
-    console.log("Stock data fetch complete, got", results.length, "quotes");
+    console.log("Stock data fetch complete, got", results.length, "valid quotes");
     return results;
   } catch (error) {
     console.error("Error fetching stock data:", error.message);
     if (error.response) {
+      console.error("Response status:", error.response.status);
       console.error("Response data:", error.response.data);
     }
     return [];
