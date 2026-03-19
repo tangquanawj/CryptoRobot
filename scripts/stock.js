@@ -143,15 +143,20 @@ async function getStockData(symbols) {
       stockMap[item.symbol] = item;
     });
 
+    // 辅助函数：格式化涨跌幅
+    const formatChange = (change) => {
+      const arrow = change >= 0 ? "↑" : "↓";
+      const color = change >= 0 ? "green" : "red";
+      return `<font color="${color}">${arrow} ${(change * 100).toFixed(2)}%</font>`;
+    };
+
     allUsIndices.forEach(symbol => {
       const data = stockMap[symbol];
       if (!data) return;
       const name = usIndexSymbols[symbol] || symbol;
       const lastPrice = data.regularMarketPrice;
       const change = data.regularMarketChangePercent;
-      const arrow = change >= 0 ? "↑" : "↓";
-      const color = change >= 0 ? "green" : "red";
-      usIndexLines.push(`${name} ${lastPrice.toFixed(2)} <font color="${color}">${arrow} ${(change * 100).toFixed(2)}%</font>`);
+      usIndexLines.push(`**${name}**\n$${lastPrice.toFixed(2)} ${formatChange(change)}`);
     });
 
     allUsStocks.forEach(symbol => {
@@ -160,13 +165,11 @@ async function getStockData(symbols) {
       const name = usStockSymbols[symbol] || symbol;
       const lastPrice = data.regularMarketPrice;
       const change = data.regularMarketChangePercent;
-      const arrow = change >= 0 ? "↑" : "↓";
-      const color = change >= 0 ? "green" : "red";
-      const line = `${symbol} (${name}) $${lastPrice.toFixed(2)} <font color="${color}">${arrow} ${(change * 100).toFixed(2)}%</font>`;
+      const line = `**${name}**\n$${lastPrice.toFixed(2)} ${formatChange(change)}`;
 
       if (coreUsStocks.includes(symbol)) {
         coreUsStockLines.push(line);
-        if (Math.abs(change * 100) >= 3) alert += `⚠ ${symbol} 美股波动超过3%\n`;
+        if (Math.abs(change * 100) >= 3) alert += `⚠ ${name} 美股波动超过3%\n`;
         if (usStockHoldings[symbol]) totalUsdValue += usStockHoldings[symbol] * lastPrice;
       }
 
@@ -184,9 +187,7 @@ async function getStockData(symbols) {
       const name = hkIndexSymbols[symbol] || symbol;
       const lastPrice = data.regularMarketPrice;
       const change = data.regularMarketChangePercent;
-      const arrow = change >= 0 ? "↑" : "↓";
-      const color = change >= 0 ? "green" : "red";
-      hkIndexLines.push(`${name} ${lastPrice.toFixed(2)} <font color="${color}">${arrow} ${(change * 100).toFixed(2)}%</font>`);
+      hkIndexLines.push(`**${name}**\nHK$${lastPrice.toFixed(2)} ${formatChange(change)}`);
     });
 
     allHkStocks.forEach(symbol => {
@@ -195,13 +196,11 @@ async function getStockData(symbols) {
       const name = hkStockSymbols[symbol] || symbol;
       const lastPrice = data.regularMarketPrice;
       const change = data.regularMarketChangePercent;
-      const arrow = change >= 0 ? "↑" : "↓";
-      const color = change >= 0 ? "green" : "red";
-      const line = `${symbol} (${name}) HK$${lastPrice.toFixed(2)} <font color="${color}">${arrow} ${(change * 100).toFixed(2)}%</font>`;
+      const line = `**${name}**\nHK$${lastPrice.toFixed(2)} ${formatChange(change)}`;
 
       if (coreHkStocks.includes(symbol)) {
         coreHkStockLines.push(line);
-        if (Math.abs(change * 100) >= 3) alert += `⚠ ${symbol} 港股波动超过3%\n`;
+        if (Math.abs(change * 100) >= 3) alert += `⚠ ${name} 港股波动超过3%\n`;
         if (hkStockHoldings[symbol]) totalHkdValue += hkStockHoldings[symbol] * lastPrice;
       }
 
@@ -213,22 +212,64 @@ async function getStockData(symbols) {
     rotationHkStockData.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
     const topRotationHkStocks = rotationHkStockData.slice(0, 3);
 
+    // 辅助函数：将一维数组转换成两列的飞书 column_set 结构
+    const createColumns = (items) => {
+      const columns = [
+        { tag: "column", width: "weighted", weight: 1, elements: [] },
+        { tag: "column", width: "weighted", weight: 1, elements: [] }
+      ];
+      
+      items.forEach((item, index) => {
+        columns[index % 2].elements.push({
+          tag: "div",
+          text: { tag: "lark_md", content: item }
+        });
+      });
+      
+      return {
+        tag: "column_set",
+        flex_mode: "none",
+        background_style: "default",
+        columns: columns
+      };
+    };
+
     const elements = [
-      { tag: "div", text: { tag: "lark_md", content: "🇺🇸 **美股主要指数**\n" + usIndexLines.join("\n") } },
+      { tag: "div", text: { tag: "lark_md", content: "🇺🇸 **美股主要指数**" } },
+      createColumns(usIndexLines),
       { tag: "hr" },
-      { tag: "div", text: { tag: "lark_md", content: "🔵 **美股核心池**\n" + coreUsStockLines.join("\n") } },
+      
+      { tag: "div", text: { tag: "lark_md", content: "🔵 **美股核心池**" } },
+      createColumns(coreUsStockLines),
       { tag: "hr" },
-      { tag: "div", text: { tag: "lark_md", content: "� **美股轮动Top3**\n" + topRotationUsStocks.map(s => s.line).join("\n") } },
+      
+      { tag: "div", text: { tag: "lark_md", content: "🟣 **美股轮动Top3**" } },
+      createColumns(topRotationUsStocks.map(s => s.line)),
       { tag: "hr" },
-      { tag: "div", text: { tag: "lark_md", content: "🇭🇰 **港股主要指数**\n" + hkIndexLines.join("\n") } },
+      
+      { tag: "div", text: { tag: "lark_md", content: "🇭🇰 **港股主要指数**" } },
+      createColumns(hkIndexLines),
       { tag: "hr" },
-      { tag: "div", text: { tag: "lark_md", content: "🔵 **港股核心池**\n" + coreHkStockLines.join("\n") } },
+      
+      { tag: "div", text: { tag: "lark_md", content: "🔵 **港股核心池**" } },
+      createColumns(coreHkStockLines),
       { tag: "hr" },
-      { tag: "div", text: { tag: "lark_md", content: "🟣 **港股轮动Top3**\n" + topRotationHkStocks.map(s => s.line).join("\n") } },
+      
+      { tag: "div", text: { tag: "lark_md", content: "🟣 **港股轮动Top3**" } },
+      createColumns(topRotationHkStocks.map(s => s.line)),
       { tag: "hr" },
-      { tag: "div", text: { tag: "lark_md", content: `💰 美股持仓: $${totalUsdValue.toFixed(2)}` } },
-      { tag: "div", text: { tag: "lark_md", content: `💰 港股持仓: HK$${totalHkdValue.toFixed(2)}` } },
-      { tag: "div", text: { tag: "lark_md", content: alert || "✅ 波动正常" } }
+      
+      {
+        tag: "column_set",
+        flex_mode: "none",
+        background_style: "default",
+        columns: [
+          { tag: "column", width: "weighted", weight: 1, elements: [{ tag: "div", text: { tag: "lark_md", content: `💰 **美股持仓**\n$${totalUsdValue.toFixed(2)}` } }] },
+          { tag: "column", width: "weighted", weight: 1, elements: [{ tag: "div", text: { tag: "lark_md", content: `💰 **港股持仓**\nHK$${totalHkdValue.toFixed(2)}` } }] }
+        ]
+      },
+      { tag: "hr" },
+      { tag: "div", text: { tag: "lark_md", content: alert || "✅ 今日波动正常" } }
     ];
 
     const timestamp = Math.floor(Date.now() / 1000).toString();
