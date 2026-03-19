@@ -1,5 +1,7 @@
 const axios = require("axios");
 const crypto = require("crypto");
+const YahooFinance = require("yahoo-finance2").default;
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const webhook = process.env.FEISHU_WEBHOOK;
 const secret = process.env.FEISHU_SECRET;
@@ -62,10 +64,10 @@ const hkStockHoldings = {
 const hkIndexSymbols = {
   "^HSI": "恒生指数",
   "^HSCE": "国企指数",
-  "^HSTECH": "恒生科技指数"
+  "HSTECH.HK": "恒生科技指数"
 };
 
-const allHkIndices = ["^HSI", "^HSCE", "^HSTECH"];
+const allHkIndices = ["^HSI", "^HSCE", "HSTECH.HK"];
 
 function sign(timestamp) {
   const stringToSign = `${timestamp}\n${secret}`;
@@ -78,49 +80,38 @@ async function getStockData(symbols) {
   try {
     console.log(`Fetching stock data for ${symbols.join(', ')}`);
     
-    const res = await axios.get("https://query1.finance.yahoo.com/v7/finance/quote", {
-      params: {
-        symbols: symbols.join(','),
-        formatted: false
-      },
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache"
-      },
-      timeout: 30000
-    });
+    // yahoo-finance2 needs symbols array
+    const queryOptions = {
+      lang: "en-US",
+      region: "US"
+    };
     
-    if (res.data && res.data.quoteResponse && res.data.quoteResponse.result) {
-      const quotes = res.data.quoteResponse.result;
-      console.log("Received", quotes.length, "quotes from Yahoo Finance");
-      
-      quotes.forEach(q => {
-        if (q && q.symbol) {
-          const price = q.regularMarketPrice;
-          const change = q.regularMarketChangePercent;
-          
-          if (price != null && change != null) {
-            results.push({
-              symbol: q.symbol,
-              regularMarketPrice: price,
-              regularMarketChangePercent: change
-            });
-          }
+    const quoteData = await yahooFinance.quote(symbols, queryOptions);
+    const quotes = Array.isArray(quoteData) ? quoteData : [quoteData];
+    
+    console.log("Received", quotes.length, "quotes from Yahoo Finance");
+    
+    quotes.forEach(q => {
+      if (q && q.symbol) {
+        const price = q.regularMarketPrice;
+        const change = q.regularMarketChangePercent;
+        
+        if (price != null && change != null) {
+          results.push({
+            symbol: q.symbol,
+            regularMarketPrice: price,
+            // the module returns change in percent format (e.g. -1.68 meaning -1.68%)
+            // our script expects it in decimal format (e.g. -0.0168) because later we do change * 100
+            regularMarketChangePercent: change / 100
+          });
         }
-      });
-    }
+      }
+    });
     
     console.log("Stock data fetch complete, got", results.length, "valid quotes");
     return results;
   } catch (error) {
     console.error("Error fetching stock data:", error.message);
-    if (error.response) {
-      console.error("Response status:", error.response.status);
-      console.error("Response data:", error.response.data);
-    }
     return [];
   }
 }
