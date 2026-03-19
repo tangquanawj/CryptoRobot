@@ -49,11 +49,15 @@ const hkStockSymbols = {
   "0939.HK": "建设银行",
   "2318.HK": "中国平安",
   "1024.HK": "快手",
-  "9618.HK": "京东"
+  "9618.HK": "京东",
+  "0293.HK": "国泰航空",
+  "0753.HK": "中国国航",
+  "1055.HK": "中国南方航空",
+  "0670.HK": "中国东方航空"
 };
 
 const coreHkStocks = ["0700.HK", "9988.HK", "3690.HK", "1810.HK", "0941.HK"];
-const rotationHkStocks = ["0005.HK", "0001.HK", "0939.HK", "2318.HK", "1024.HK", "9618.HK"];
+const rotationHkStocks = ["0005.HK", "0001.HK", "0939.HK", "2318.HK", "1024.HK", "9618.HK", "0293.HK", "0753.HK", "1055.HK", "0670.HK"];
 const allHkStocks = [...coreHkStocks, ...rotationHkStocks];
 
 const hkStockHoldings = {
