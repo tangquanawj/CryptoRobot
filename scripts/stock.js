@@ -16,11 +16,18 @@ const usStockSymbols = {
   "META": "Meta",
   "JPM": "摩根大通",
   "V": "Visa",
-  "JNJ": "强生"
+  "JNJ": "强生",
+  "BABA": "阿里巴巴",
+  "SE": "SEA",
+  "ARM": "ARM",
+  "JD": "京东",
+  "NTES": "网易",
+  "MPNGY": "美团",
+  "MSTR": "微策略"
 };
 
 const coreUsStocks = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"];
-const rotationUsStocks = ["TSLA", "META", "JPM", "V", "JNJ"];
+const rotationUsStocks = ["TSLA", "META", "JPM", "V", "JNJ", "BABA", "SE", "ARM", "JD", "NTES", "MPNGY", "MSTR"];
 const allUsStocks = [...coreUsStocks, ...rotationUsStocks];
 
 const usStockHoldings = {
